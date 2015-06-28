@@ -81,6 +81,7 @@ class VM {
 
     /// Return stack operations. ///
     inline void ret();
+    inline int16_t addr( int16_t current, int16_t block, int16_t offset);
 
     int16_t* _ram; // Random Access Memory.
     int16_t* _parameterStack;

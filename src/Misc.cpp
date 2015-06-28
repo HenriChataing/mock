@@ -201,6 +201,27 @@ inline void VM::ret() {
   _pc = _returnStack[_rsp--];
 }
 
+/**
+ * Compute the jump address after a branch instruction.
+ * @param {block} block selection.
+ * @param {offset} offset of the new address in the indicated block.
+ * @param {current} current value of the PC register.
+ */
+inline int16_t VM::addr(int16_t current, int16_t block, int16_t offset) {
+  int16_t cb = current & 0xFC00;
+  switch(block) {
+    // Remain in the same memory block.
+    case 0: return cb | offset;
+    // Jump to next block.
+    case 1: return (cb + 0x0400) | offset;
+    // Jump to previous block.
+    case 3: return (cb - 0x0400) | offset;
+    // Return to block 0.
+    case 2:
+    default: return offset;
+  }
+}
+
 /// Simulation. ///
 
 /** Fetch the instruction at the address {_pc}. */
@@ -443,9 +464,37 @@ void VM::run() {
           break;
         }
 
-      // Branches and loops.
-      case 0x8000:
-      case 0x9000:
+      // Conditional branch. The branch is taken if the content of the TOP register
+      // is 0.
+      case 0x8000: {
+        int16_t c = ir & 0x0800, b = (ir & 0x0600) >> 9, a = (ir & 0x01FF) << 1;
+        // Branch taken.
+        if (!_parameterStack[_psp]) {
+          // Drop the top value if {c} is 0.
+          if (c == 0) _psp--;
+          // Perform the jump.
+          _pc = addr(_pc, b, a)-1;
+        }
+        break;
+      }
+
+      // Unconditionnal branch.
+      case 0x9000: {
+        int16_t c = ir & 0x0800, b = (ir & 0x0600) >> 9, a = ir & 0x01FF;
+        // unconditional branch.
+        if (c)
+          _pc = addr(_pc, b, a)-1;
+        // Looping instruction. If the INDEX (top value of the return stack) is
+        // zero, increment PC, else jump the beginning of the loop body after
+        // decrementing INDEX.
+        else if (_returnStack[_rsp]) {
+          _returnStack[_rsp]--;
+          _pc = addr(_pc, b, a)-1;
+        } else
+          _rsp--;
+
+        break;
+      }
 
       // Subroutine call.
       default:
@@ -453,7 +502,7 @@ void VM::run() {
         // subroutine.
         int16_t addr = ir << 1;
         _returnStack[++_rsp] = _pc+1;
-        _pc = addr;
+        _pc = addr-1;
         break;
     }
 
