@@ -4,7 +4,7 @@ BINDIR=bin
 
 CC=clang++
 CFLAGS=
-LFLAGS=
+LFLAGS=-lncurses
 
 EXE=cvm
 SRC=$(wildcard $(SRCDIR)/*.cpp)
@@ -23,4 +23,4 @@ $(BINDIR)/$(EXE): $(OBJ) obj/abstract.o
 
 .PHONY: clean
 clean:
-	rm -f $(OBJ) $(BINDIR)/$(EXE)
+	rm -f $(OBJ) $(OBJDIR)/abstract.o $(BINDIR)/$(EXE)
